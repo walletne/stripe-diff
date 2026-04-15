@@ -1,4 +1,5 @@
 import https from 'https';
+import http from 'http';
 
 const STRIPE_OPENAPI_BASE =
   'https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.sdk.json';
@@ -34,7 +35,7 @@ export async function fetchSchema(apiVersion: string): Promise<Record<string, un
 }
 
 function collectBody(
-  res: import('http').IncomingMessage,
+  res: http.IncomingMessage,
   resolve: (value: Record<string, unknown>) => void,
   reject: (reason: Error) => void
 ): void {
