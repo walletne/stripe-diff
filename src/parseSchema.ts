@@ -52,12 +52,7 @@ export function extractEventSchemas(
     >;
 
     for (const [propName, propDef] of Object.entries(rawProps)) {
-      properties[propName] = {
-        type: (propDef["type"] as string) ?? "unknown",
-        description: propDef["description"] as string | undefined,
-        nullable: propDef["nullable"] as boolean | undefined,
-        enum: propDef["enum"] as string[] | undefined,
-      };
+      properties[propName] = parsePropertySchema(propDef);
     }
 
     eventSchemas.set(key, {
@@ -68,4 +63,28 @@ export function extractEventSchemas(
   }
 
   return eventSchemas;
+}
+
+/**
+ * Parses a raw property definition object from the OpenAPI spec into a
+ * strongly-typed PropertySchema. Handles missing or malformed fields
+ * by falling back to safe defaults (e.g. type defaults to "unknown").
+ */
+function parsePropertySchema(
+  propDef: Record<string, unknown>
+): PropertySchema {
+  return {
+    type: typeof propDef["type"] === "string" ? propDef["type"] : "unknown",
+    description:
+      typeof propDef["description"] === "string"
+        ? propDef["description"]
+        : undefined,
+    nullable:
+      typeof propDef["nullable"] === "boolean"
+        ? propDef["nullable"]
+        : undefined,
+    enum: Array.isArray(propDef["enum"])
+      ? (propDef["enum"] as string[])
+      : undefined,
+  };
 }
