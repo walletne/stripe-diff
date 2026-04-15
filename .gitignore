@@ -1,0 +1,13 @@
+# Typescript
+
+node_modules/
+
+npm-debug.log*
+out/
+build/
+.env
+*.js.map
+.next/
+.env.local
+dist/
+*.tsbuildinfo
