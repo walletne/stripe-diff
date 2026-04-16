@@ -19,6 +19,10 @@ export async function fetchSchema(apiVersion: string): Promise<Record<string, un
           // Fall back to master if version-specific tag not found
           https
             .get(STRIPE_OPENAPI_BASE, (fallbackRes) => {
+              if (fallbackRes.statusCode !== 200) {
+                reject(new Error(`Failed to fetch fallback schema: HTTP ${fallbackRes.statusCode}`));
+                return;
+              }
               collectBody(fallbackRes, resolve, reject);
             })
             .on('error', reject);
