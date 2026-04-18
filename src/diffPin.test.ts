@@ -1,61 +1,70 @@
-import { addPin, listPins, removePin, findPin, formatPinTable } from './diffPin';
+import { pinDiff, unpinDiff, listPins, formatPinTable } from './diffPin';
 import * as cache from './cache';
 
 jest.mock('./cache');
 
-const mockRead = cache.readCache as jest.MockedFunction<typeof cache.readCache>;
-const mockWrite = cache.writeCache as jest.MockedFunction<typeof cache.writeCache>;
+const mockRead = cache.readCache as jest.Mock;
+const mockWrite = cache.writeCache as jest.Mock;
 
-beforeEach(() => {
-  jest.clearAllMocks();
-  mockWrite.mockResolvedValue(undefined);
+const makeEntry = (label: string) => ({
+  label,
+  versions: ['2022-01-01', '2023-01-01'] as [string, string],
+  savedAt: '2024-01-01T00:00:00Z',
+  summary: { added: 1, removed: 0, changed: 2 },
 });
 
-test('listPins returns empty array when no cache', async () => {
-  mockRead.mockResolvedValue(null);
-  const pins = await listPins();
-  expect(pins).toEqual([]);
+describe('pinDiff', () => {
+  it('adds a new pin and writes to cache', () => {
+    mockRead.mockReturnValue([]);
+    const entry = makeEntry('my-pin');
+    pinDiff(entry);
+    expect(mockWrite).toHaveBeenCalledWith('pins', [entry]);
+  });
+
+  it('replaces existing pin with same label', () => {
+    const existing = makeEntry('my-pin');
+    mockRead.mockReturnValue([existing]);
+    const updated = { ...existing, summary: { added: 5, removed: 0, changed: 0 } };
+    pinDiff(updated);
+    const written = mockWrite.mock.calls[0][1];
+    expect(written).toHaveLength(1);
+    expect(written[0].summary.added).toBe(5);
+  });
 });
 
-test('addPin stores a new pin with id and createdAt', async () => {
-  mockRead.mockResolvedValue([]);
-  const pin = await addPin({ label: 'test', fromVersion: '2022-01-01', toVersion: '2023-01-01' });
-  expect(pin.id).toMatch(/^pin_/);
-  expect(pin.label).toBe('test');
-  expect(pin.createdAt).toBeTruthy();
-  expect(mockWrite).toHaveBeenCalledWith('pinned-diffs', [pin]);
+describe('unpinDiff', () => {
+  it('removes pin by label', () => {
+    mockRead.mockReturnValue([makeEntry('keep'), makeEntry('remove')]);
+    unpinDiff('remove');
+    const written = mockWrite.mock.calls[0][1];
+    expect(written).toHaveLength(1);
+    expect(written[0].label).toBe('keep');
+  });
 });
 
-test('removePin removes existing pin', async () => {
-  const existing = { id: 'pin_1', label: 'a', fromVersion: '2022-01-01', toVersion: '2023-01-01', createdAt: '' };
-  mockRead.mockResolvedValue([existing]);
-  const result = await removePin('pin_1');
-  expect(result).toBe(true);
-  expect(mockWrite).toHaveBeenCalledWith('pinned-diffs', []);
+describe('listPins', () => {
+  it('returns all pins', () => {
+    const pins = [makeEntry('a'), makeEntry('b')];
+    mockRead.mockReturnValue(pins);
+    expect(listPins()).toHaveLength(2);
+  });
+
+  it('returns empty array when no pins', () => {
+    mockRead.mockReturnValue(null);
+    expect(listPins()).toEqual([]);
+  });
 });
 
-test('removePin returns false for unknown id', async () => {
-  mockRead.mockResolvedValue([]);
-  const result = await removePin('pin_999');
-  expect(result).toBe(false);
-  expect(mockWrite).not.toHaveBeenCalled();
-});
+describe('formatPinTable', () => {
+  it('renders table with headers', () => {
+    const pins = [makeEntry('release-check')];
+    const out = formatPinTable(pins);
+    expect(out).toContain('Label');
+    expect(out).toContain('release-check');
+    expect(out).toContain('2022-01-01');
+  });
 
-test('findPin returns matching pin', async () => {
-  const existing = { id: 'pin_2', label: 'b', fromVersion: '2022-01-01', toVersion: '2023-01-01', createdAt: '' };
-  mockRead.mockResolvedValue([existing]);
-  const pin = await findPin('pin_2');
-  expect(pin).toEqual(existing);
-});
-
-test('formatPinTable shows no pins message', () => {
-  expect(formatPinTable([])).toBe('No pinned diffs.');
-});
-
-test('formatPinTable renders rows', () => {
-  const pins = [{ id: 'pin_1', label: 'my pin', fromVersion: '2022-01-01', toVersion: '2023-01-01', eventType: 'charge.updated', createdAt: '' }];
-  const out = formatPinTable(pins);
-  expect(out).toContain('pin_1');
-  expect(out).toContain('my pin');
-  expect(out).toContain('charge.updated');
+  it('shows message when no pins', () => {
+    expect(formatPinTable([])).toContain('No pinned diffs');
+  });
 });
