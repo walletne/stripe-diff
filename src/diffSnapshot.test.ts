@@ -56,3 +56,22 @@ test('formatSnapshotList formats entries', () => {
 test('formatSnapshotList handles empty list', () => {
   expect(formatSnapshotList([])).toBe('No snapshots found.');
 });
+
+test('saveSnapshot overwrites existing snapshot with same versions', () => {
+  const diff1 = makeDiff();
+  saveSnapshot(tmpDir, '2023-01-01', '2024-01-01', diff1);
+
+  const diff2: EventSchemaDiff = {
+    'payment_intent.created': {
+      added: [],
+      removed: [{ path: 'data.object.currency', type: 'string' }],
+      changed: [],
+    },
+  };
+  saveSnapshot(tmpDir, '2023-01-01', '2024-01-01', diff2);
+
+  const entry = loadSnapshot(tmpDir, '2023-01-01', '2024-01-01');
+  expect(entry).not.toBeNull();
+  expect(entry!.diff).toEqual(diff2);
+  expect(listSnapshots(tmpDir)).toHaveLength(1);
+});
