@@ -18,6 +18,9 @@ export function searchDiff(
   options: SearchOptions
 ): SearchResult[] {
   const { query, caseSensitive = false, searchIn = ['field', 'type'] } = options;
+
+  if (!query || query.trim() === '') return [];
+
   const needle = caseSensitive ? query : query.toLowerCase();
   const results: SearchResult[] = [];
 
